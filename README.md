@@ -8,7 +8,7 @@ A responsive weather application built using nextjs and openweathermap. It fetch
 
 ## Technologies Used
 
-- Frontend: React.js 19, Next.js 16, Redux Toolkit, React Redux, React Icons, Tailwind CSS
+- Frontend: React.js 19, Next.js, Redux Toolkit, React Redux, React Icons, Tailwind CSS
 - Deployment: Vercel
 
 ## Getting Started
@@ -21,7 +21,7 @@ A responsive weather application built using nextjs and openweathermap. It fetch
 
 ## Project Structure
 
-This project uses Next.js 16 with the App Router architecture and follows a `src/` directory structure:
+This project uses Next.js with the App Router architecture and follows a `src/` directory structure:
 
 ```
 ├── src/
