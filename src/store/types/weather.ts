@@ -59,7 +59,7 @@ interface CityInfo {
   sunset: number;
 }
 
-export interface WeatherForecastEntry {
+export interface ForecastEntry {
   dt: number;
   main: MainWeatherMetrics;
   weather: WeatherCondition[];
@@ -71,11 +71,11 @@ export interface WeatherForecastEntry {
   dt_txt: string;
 }
 
-export interface WeatherForecastResponse {
+export interface ForecastResponse {
   cod: string;
   message: number;
   cnt: number;
-  list: WeatherForecastEntry[];
+  list: ForecastEntry[];
   city: CityInfo;
 }
 
@@ -98,7 +98,7 @@ export interface DayForecast {
   tempMax: number;
   icon: string;
   description: string;
-  intervals: WeatherForecastEntry[];
+  intervals: ForecastEntry[];
 }
 
 export interface ForecastView {

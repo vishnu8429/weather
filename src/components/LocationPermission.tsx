@@ -11,7 +11,9 @@ import Button from '@/components/ui/Button';
 
 export default function LocationPermission() {
   const dispatch = useAppDispatch();
-  const { isLoading, error } = useAppSelector((state) => state.weather);
+
+  const isLoading = useAppSelector((state) => state.weather.isLoading);
+  const error = useAppSelector((state) => state.weather.error);
 
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [autoRequested, setAutoRequested] = useState<boolean>(false);
@@ -88,40 +90,39 @@ export default function LocationPermission() {
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-gradient-to-b from-blue-50 to-blue-100">
-      <Card
-        className="w-full max-w-md"
-        contentClassName="flex flex-col items-center text-center space-y-8"
-      >
-        <div className="bg-blue-100 rounded-full p-6">
-          <FiMapPin size={34} className="text-blue-600" />
-        </div>
-
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold">Welcome to Weather App</h1>
-          <p className="text-gray-500">
-            Allow access to your location to get accurate weather forecasts for your area.
-          </p>
-        </div>
-
-        {error && (
-          <div className="flex items-center gap-3 p-3 bg-red-50 text-red-800 rounded-lg w-full">
-            <LuTriangleAlert size={20} />
-            <p className="text-sm text-start">{error}</p>
+      <Card className="w-full max-w-md">
+        <div className="flex flex-col items-center text-center space-y-8 p-4">
+          <div className="bg-blue-100 rounded-full p-6">
+            <FiMapPin size={34} className="text-blue-600" />
           </div>
-        )}
 
-        <div className="flex flex-col gap-2 w-full">
-          <Button
-            disabled={isLoading}
-            color="secondary"
-            label={isLoading ? "Requesting..." : "Allow Location Access"}
-            onClick={() => handleRequestLocation()}
-          />
-          <Button
-            disabled={isLoading}
-            label="Search by City Instead"
-            onClick={() => dispatch(setPageView(PageView.Forecast))}
-          />
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold">Welcome to Weather App</h1>
+            <p className="text-gray-500">
+              Allow access to your location to get accurate weather forecasts for your area.
+            </p>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-3 p-3 bg-red-50 text-red-800 rounded-lg w-full">
+              <LuTriangleAlert size={20} />
+              <p className="text-sm text-start">{error}</p>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2 w-full">
+            <Button
+              disabled={isLoading}
+              color="secondary"
+              label={isLoading ? "Requesting..." : "Allow Location Access"}
+              onClick={() => handleRequestLocation()}
+            />
+            <Button
+              disabled={isLoading}
+              label="Search by City Instead"
+              onClick={() => dispatch(setPageView(PageView.Forecast))}
+            />
+          </div>
         </div>
       </Card>
     </div>

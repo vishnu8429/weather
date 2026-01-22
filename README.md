@@ -31,6 +31,7 @@ This project uses Next.js with the App Router architecture and follows a `src/` 
 │   │   └── page.js        # Home page
 │   ├── pages/             # Pages Router
 │   ├── components/        # Reusable UI components
+│   ├── hooks/             # React custom hooks
 │   ├── utils/             # Utility functions
 ├── public/                # Static assets
 ├── next.config.js         # Next.js configuration

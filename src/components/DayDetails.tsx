@@ -10,13 +10,15 @@ import Button from '@/components/ui/Button';
 export default function DayDetails() {
   const dispatch = useAppDispatch();
 
-  const { unit, selectedDay, timezone } = useAppSelector((state: RootState) => state.weather);
+  const unit = useAppSelector((state: RootState) => state.weather.unit);
+  const selectedDay = useAppSelector((state: RootState) => state.weather.selectedDay);
+  const timezone = useAppSelector((state: RootState) => state.weather.timezone);
 
   if (!selectedDay) {
     return null;
   }
 
-  const handleBack = () => {
+  const handleGoBack = () => {
     dispatch(setSelectedDay(null));
     dispatch(setPageView(PageView.Forecast));
   };
@@ -24,7 +26,7 @@ export default function DayDetails() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Button variant="icon" onClick={() => handleBack()}>
+        <Button variant="icon" title="Go back" onClick={() => handleGoBack()}>
           <LuArrowLeft size={20} />
         </Button>
         <div>
@@ -33,22 +35,22 @@ export default function DayDetails() {
         </div>
       </div>
 
-      <ForecastCard
-        type="today"
-        unit={unit}
-        forecast={selectedDay}
-      />
+      <ForecastCard unit={unit} forecast={selectedDay} />
 
       <h2 className="text-gray-700 uppercase pt-3">3-Hour Forecast</h2>
       <div className="space-y-3">
-        {selectedDay.intervals.map((interval, index) => (
-          <ForecastIntervalCard
-            key={index}
-            unit={unit}
-            timezone={timezone}
-            interval={interval}
-          />
-        ))}
+        {
+          selectedDay.intervals &&
+          selectedDay.intervals.length > 0 &&
+          selectedDay.intervals.map((interval, index) => (
+            <ForecastIntervalCard
+              key={index}
+              unit={unit}
+              timezone={timezone}
+              interval={interval}
+            />
+          ))
+        }
       </div>
     </div>
   );

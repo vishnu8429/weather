@@ -1,11 +1,8 @@
 
 import { ReactNode } from "react";
-import type { Metadata } from 'next'
+import type { Metadata } from 'next';
 import StoreProvider from "@/store/StoreProvider";
 import "./globals.css";
-
-// always render with the latest client-side weather data.
-export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Weather Forecast",
@@ -15,11 +12,7 @@ export const metadata: Metadata = {
   },
 }
 
-interface RootLayoutProps {
-  children: ReactNode;
-}
-
-export default function RootLayout({ children }: RootLayoutProps) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
