@@ -7,6 +7,7 @@ interface ButtonProps {
   color?: "primary" | "secondary";
   size?: "sm" | "md" | "lg";
   disabled?: boolean;
+  title?: string;
   label?: string;
   children?: React.ReactNode;
   onClick?: () => void;
@@ -19,6 +20,7 @@ export default function Button({
   color = "primary",
   size = "md",
   disabled = false,
+  title = "",
   label = "",
   children = "",
   onClick,
@@ -85,12 +87,13 @@ export default function Button({
         ${variantClasses} ${sizeClasses} ${focusRingClasses} ${className}
       `}
       type={type}
-      aria-label={label}
+      aria-label={label || title}
       aria-disabled={disabled}
       disabled={disabled}
       onClick={onClick}
     >
-      {label || children}
+      {label && <span>{label}</span>}
+      {children && children}
     </button>
   );
 }

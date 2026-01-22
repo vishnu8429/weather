@@ -6,7 +6,7 @@ import SearchBar from "@/components/core/SearchBar";
 import UnitToggle from "@/components/core/UnitToggle";
 
 export default function Header() {
-  const { cityName } = useAppSelector((state) => state.weather);
+  const cityName = useAppSelector((state) => state.weather.cityName);
 
   return (
     <div className="space-y-4">

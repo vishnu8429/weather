@@ -1,12 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { PageView, DayForecast, TemperatureUnit } from "@/store/types/weather";
-
-interface ForecastResult {
-  cityName: string;
-  country: string;
-  timezone: number;
-  forecasts: DayForecast[];
-}
+import { weatherApi } from "@/store/api/weather";
+import { PageView, DayForecast, TemperatureUnit, ForecastView } from "@/store/types/weather";
 
 interface WeatherState {
   isLoading: boolean;
@@ -69,14 +63,79 @@ const weatherSlice = createSlice({
     },
     setForecast: (
       state,
-      action: PayloadAction<ForecastResult>
+      action: PayloadAction<ForecastView>
     ) => {
       state.cityName = action.payload.cityName;
       state.country = action.payload.country;
       state.timezone = action.payload.timezone;
       state.forecasts = action.payload.forecasts;
-      state.pageView = action.payload.forecasts.length > 0 ? PageView.Forecast : PageView.Permission;
+      // state.pageView = action.payload.forecasts.length > 0 ? PageView.Forecast : PageView.Permission;
     },
+  },
+  extraReducers: (builder) => {
+    // Handle pending forecast queries
+    const handleForecastPending = (state: WeatherState) => {
+      state.isLoading = true;
+      state.error = undefined;
+    };
+
+    // Handle fulfilled forecast
+    const handleForecastFulfilled = (state: WeatherState, action: any) => {
+      state.isLoading = false;
+      state.error = undefined;
+      const data = action.payload as ForecastView;
+      if (data) {
+        state.cityName = data.cityName || "";
+        state.country = data.country || "";
+        state.timezone = data.timezone || 0;
+        state.forecasts = Array.isArray(data.forecasts) ? data.forecasts : [];
+        state.pageView = state.forecasts.length > 0 ? PageView.Forecast : PageView.Permission;
+      } else {
+        state.cityName = "";
+        state.country = "";
+        state.timezone = 0;
+        state.forecasts = [];
+        state.pageView = PageView.Permission;
+      }
+    };
+
+    // Handle rejected forecast
+    const handleForecastRejected = (state: WeatherState, action: any) => {
+      state.isLoading = false;
+      const errorMessage =
+        (action.payload as any)?.data ||
+        (action.error as any)?.message ||
+        'Failed to fetch weather data';
+      state.error = errorMessage;
+    };
+
+    // Handle getForecastByCoords
+    builder
+      .addMatcher(
+        weatherApi.endpoints.getForecastByCoords.matchPending,
+        handleForecastPending
+      )
+      .addMatcher(
+        weatherApi.endpoints.getForecastByCoords.matchFulfilled,
+        handleForecastFulfilled
+      )
+      .addMatcher(
+        weatherApi.endpoints.getForecastByCoords.matchRejected,
+        handleForecastRejected
+      )
+      // Handle getForecastByCity
+      .addMatcher(
+        weatherApi.endpoints.getForecastByCity.matchPending,
+        handleForecastPending
+      )
+      .addMatcher(
+        weatherApi.endpoints.getForecastByCity.matchFulfilled,
+        handleForecastFulfilled
+      )
+      .addMatcher(
+        weatherApi.endpoints.getForecastByCity.matchRejected,
+        handleForecastRejected
+      );
   },
 });
 
@@ -90,4 +149,5 @@ export const {
   setSelectedDay,
   setForecast,
 } = weatherSlice.actions;
+
 export default weatherSlice.reducer;

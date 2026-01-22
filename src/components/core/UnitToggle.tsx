@@ -4,6 +4,7 @@ import { TemperatureUnit } from '@/store/types/weather';
 
 export default function UnitToggle() {
   const dispatch = useAppDispatch();
+
   const unit = useAppSelector((state) => state.weather.unit);
 
   return (

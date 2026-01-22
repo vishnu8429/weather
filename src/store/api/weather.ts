@@ -1,26 +1,30 @@
 import { baseApi } from "@/store/api/base";
 import {
-  WeatherForecastEntry,
-  WeatherForecastResponse,
+  ForecastEntry,
+  ForecastResponse,
   DayForecast,
   ForecastView,
   GeoCodingResponse,
 } from "@/store/types/weather";
-
-const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
-if (!API_KEY) {
-  throw new Error("OPENWEATHER_API_KEY is not set");
-}
 
 const API_ENDPOINT = {
   FORECAST: "/data/2.5/forecast",
   GEOCODING: "/geo/1.0/direct",
 };
 
+// Gets the OpenWeather API key
+const getApiKey = (): string => {
+  const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
+  if (!apiKey) {
+    throw new Error("NEXT_PUBLIC_OPENWEATHER_API_KEY is not set");
+  }
+  return apiKey;
+};
+
 // Transform OpenWeather forecast response
-const transformForecastResponse = (response: WeatherForecastResponse): ForecastView => {
-  // Handle empty responses
-  if (!response.list || response.list.length === 0) {
+const transformForecastResponse = (response: any): ForecastView => {
+  // Handle null/undefined responses
+  if (!response || typeof response !== 'object') {
     return {
       cityName: "",
       country: "",
@@ -29,9 +33,31 @@ const transformForecastResponse = (response: WeatherForecastResponse): ForecastV
     };
   }
 
-  const data: WeatherForecastEntry[] = response.list;
+  // Handle API-level errors (cod !== '200')
+  if ('cod' in response) {
+    const cod = response.cod;
+    if (cod && String(cod) !== '200') {
+      return {
+        cityName: (response.city && response.city.name) ? response.city.name : "",
+        country: (response.city && response.city.country) ? response.city.country : "",
+        timezone: (response.city && response.city.timezone) ? response.city.timezone : 0,
+        forecasts: [],
+      };
+    }
+  }
 
-  const days: Record<string, WeatherForecastEntry[]> = {};
+  // Handle empty list
+  if (!response.list || !Array.isArray(response.list) || response.list.length === 0) {
+    return {
+      cityName: (response.city && response.city.name) ? response.city.name : "",
+      country: (response.city && response.city.country) ? response.city.country : "",
+      timezone: (response.city && response.city.timezone) ? response.city.timezone : 0,
+      forecasts: [],
+    };
+  }
+
+  const data: ForecastEntry[] = response.list;
+  const days: Record<string, ForecastEntry[]> = {};
 
   // Group forecast data
   data.forEach((item) => {
@@ -55,13 +81,16 @@ const transformForecastResponse = (response: WeatherForecastResponse): ForecastV
       // Get the common weather condition for the day
       const weatherCounts: Record<string, number> = {};
       intervals.forEach((i) => {
-        const key = i.weather[0].icon;
-        weatherCounts[key] = (weatherCounts[key] || 0) + 1;
+        if (i.weather && i.weather.length > 0) {
+          const key = i.weather[0].icon;
+          weatherCounts[key] = (weatherCounts[key] || 0) + 1;
+        }
       });
 
-      const icon = Object.entries(weatherCounts).sort((a, b) => b[1] - a[1])[0][0];
+      const sortedWeather = Object.entries(weatherCounts).sort((a, b) => b[1] - a[1]);
+      const icon = sortedWeather.length > 0 ? sortedWeather[0][0] : "01d"; // Default to clear sky icon
       const description =
-        intervals.find((i) => i.weather[0].icon === icon)?.weather[0]
+        intervals.find((i) => i.weather && i.weather.length > 0 && i.weather[0].icon === icon)?.weather[0]
           .description || "";
 
       return {
@@ -87,30 +116,45 @@ const transformForecastResponse = (response: WeatherForecastResponse): ForecastV
 };
 
 const weatherApi = baseApi.injectEndpoints({
-  endpoints: (builder) => ({
-    // Fetch forecast data by coordinates
-    getForecastByCoords: builder.query<ForecastView, { latitude: number; longitude: number }>({
-      query: ({ latitude, longitude }) => `${API_ENDPOINT.FORECAST}?lat=${latitude}&lon=${longitude}&units=metric&appid=${API_KEY}`,
-      transformResponse: (response: WeatherForecastResponse): ForecastView =>
-        transformForecastResponse(response),
-    }),
+  endpoints: (builder) => {
+    return {
+      // Fetch forecast data by coordinates
+      getForecastByCoords: builder.query<ForecastView, { latitude: number; longitude: number }>({
+        query: ({ latitude, longitude }) => {
+          const apiKey = getApiKey();
+          return `${API_ENDPOINT.FORECAST}?lat=${latitude}&lon=${longitude}&units=metric&appid=${apiKey}`;
+        },
+        transformResponse: (response: ForecastResponse): ForecastView =>
+          transformForecastResponse(response),
+      }),
 
-    // Fetch forecast data by city name
-    getForecastByCity: builder.query<ForecastView, { cityName: string }>({
-      query: ({ cityName }) => `${API_ENDPOINT.FORECAST}?q=${cityName}&units=metric&appid=${API_KEY}`,
-      transformResponse: (response: WeatherForecastResponse): ForecastView =>
-        transformForecastResponse(response),
-    }),
+      // Fetch forecast data by city name
+      getForecastByCity: builder.query<ForecastView, { cityName: string }>({
+        query: ({ cityName }) => {
+          const apiKey = getApiKey();
+          return `${API_ENDPOINT.FORECAST}?q=${encodeURIComponent(cityName)}&units=metric&appid=${apiKey}`;
+        },
+        transformResponse: (response: ForecastResponse): ForecastView =>
+          transformForecastResponse(response),
+      }),
 
-    // Search cities using Geocoding API
-    searchCities: builder.query<GeoCodingResponse, string>({
-      query: (cityName) => `${API_ENDPOINT.GEOCODING}?q=${encodeURIComponent(cityName)}&limit=5&appid=${API_KEY}`,
-    }),
-  }),
+      // Search cities using Geocoding API
+      searchCities: builder.query<GeoCodingResponse, string>({
+        query: (cityName) => {
+          const apiKey = getApiKey();
+          return `${API_ENDPOINT.GEOCODING}?q=${encodeURIComponent(cityName)}&limit=5&appid=${apiKey}`;
+        },
+      }),
+    };
+  },
 });
 
 export const {
   useGetForecastByCoordsQuery,
   useLazyGetForecastByCoordsQuery,
+  useGetForecastByCityQuery,
+  useLazyGetForecastByCityQuery,
   useLazySearchCitiesQuery,
 } = weatherApi;
+
+export { weatherApi };

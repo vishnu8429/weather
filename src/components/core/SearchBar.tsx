@@ -1,13 +1,16 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 import { CiSearch } from "react-icons/ci";
 import { FiMapPin } from "react-icons/fi";
 import { TbLoader2 } from "react-icons/tb";
 import { useAppDispatch } from "@/store/hooks";
 import { useLazySearchCitiesQuery, useLazyGetForecastByCoordsQuery } from "@/store/api/weather";
-import { setForecast, setCoords } from "@/store/slices/weather";
+import { setError, setCoords, setForecast } from "@/store/slices/weather";
 import { GeoCodingEntry } from "@/store/types/weather";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useClickOutside } from "@/hooks/useClickOutside";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 import Input from "@/components/ui/Input";
 
 export default function SearchBar() {
@@ -15,86 +18,52 @@ export default function SearchBar() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestSearchTextRef = useRef<string>("");
 
   const [isOpen, setIsOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
+  const [isUserTyping, setIsUserTyping] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [suggestions, setSuggestions] = useState<GeoCodingEntry[]>([]);
-  const [isUserTyping, setIsUserTyping] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   const [searchCities, { isFetching: isSearching }] = useLazySearchCitiesQuery();
   const [getForecast, { isFetching: isLoadingForecast }] = useLazyGetForecastByCoordsQuery();
 
-  useEffect(() => {
-    if (!isUserTyping) {
-      return;
-    }
-
-    // Track the latest search text
-    latestSearchTextRef.current = searchText;
-
-    // Clear any pending debounce
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    if (searchText.trim().length < 2) {
+  // Handle debounce search
+  const { cancel: cancelDebounce } = useDebounce({
+    isUserTyping,
+    searchText,
+    onSearch: async (term: string) => {
+      const result = await searchCities(term).unwrap();
+      if (result.length === 0) {
+        dispatch(setError(`Failed to fetch forecast for city: ${term}`));
+        dispatch(setForecast({
+          cityName: "",
+          country: "",
+          timezone: 0,
+          forecasts: [],
+        }));
+      }
+      return result;
+    },
+    onResults: (results) => {
+      setIsOpen(results && results.length > 0);
+      setSuggestions(results);
+      setActiveIndex(-1); // Reset active index when new results arrive
+    },
+    onError: () => {
       setIsOpen(false);
       setSuggestions([]);
-      return;
-    }
+    },
+  });
 
-    const term = searchText.trim();
-
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const result = await searchCities(term).unwrap();
-
-        if (term !== latestSearchTextRef.current) {
-          return;
-        }
-
-        setIsOpen(result.length > 0);
-        setActiveIndex(-1);
-        setSuggestions(result);
-      } catch (error) {
-        setIsOpen(false);
-        setSuggestions([]);
-      }
-    }, 300);
-
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, [searchText, searchCities, isUserTyping]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleSelectCity = async (location: GeoCodingEntry) => {
+  // Handle city selection
+  const handleSelectCity = useCallback(async (location: GeoCodingEntry) => {
     const displayName = location.state
       ? `${location.name}, ${location.state}, ${location.country}`
       : `${location.name}, ${location.country}`;
 
     setIsUserTyping(false);
-
-    // Cancel any pending debounce
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+    cancelDebounce();
 
     setSearchText(displayName);
     setIsOpen(false);
@@ -109,33 +78,26 @@ export default function SearchBar() {
       dispatch(setForecast(result));
       dispatch(setCoords({ latitude: location.lat, longitude: location.lon }));
     } catch (error) {
-      console.error("Failed to fetch forecast:", error);
+      dispatch(setError(`Failed to fetch forecast for city: ${displayName}`));
     }
-  };
+  }, [cancelDebounce, getForecast, dispatch]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!isOpen || suggestions.length === 0) return;
+  // Handle click outside to close dropdown
+  useClickOutside({
+    ref: containerRef,
+    enabled: isOpen,
+    handler: () => setIsOpen(false),
+  });
 
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        setActiveIndex((prev) => prev < suggestions.length - 1 ? prev + 1 : 0);
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        setActiveIndex((prev) => prev > 0 ? prev - 1 : suggestions.length - 1);
-        break;
-      case "Enter":
-        e.preventDefault();
-        if (activeIndex >= 0) {
-          handleSelectCity(suggestions[activeIndex]);
-        }
-        break;
-      case "Escape":
-        setIsOpen(false);
-        break;
-    }
-  };
+  // Handle keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation({
+    items: suggestions,
+    isOpen,
+    activeIndex,
+    setActiveIndex,
+    onSelect: handleSelectCity,
+    onClose: () => setIsOpen(false),
+  });
 
   const isLoading = isSearching || isLoadingForecast;
 
